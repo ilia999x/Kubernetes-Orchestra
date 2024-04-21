@@ -67,8 +67,8 @@ kind: ConfigMap
 metadata:
   name: backending-config
 data:
-  SPACES_ACCESS: "AKIARP4YOJPKE4MWVYNE"
-  SPACES_SECRET: "3I/aePJwLxD1M0ykadnyZzzbjLpYWJrGG3BI0mlU"
+  SPACES_ACCESS: "REPLACE_WITH_YOUR_SPACES_ACCESS"
+  SPACES_SECRET: "REPLACE_WITH_YOUR_SPACES_SECRET"
   ENDPOINT: "https://s3.amazonaws.com"
   REGION: "us-east-1"
   website_API: 'http://server-api-service:8000/wm/'
