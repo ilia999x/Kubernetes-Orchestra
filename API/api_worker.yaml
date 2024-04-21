@@ -1,0 +1,36 @@
+# deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-worker1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: api-worker1
+  template:
+    metadata:
+      labels:
+        name: api-worker1
+    spec:
+      containers:
+        - name: api-worker1
+          image: ilia999x/backend-api:latest
+          env:
+          - name: PYTHONUNBUFFERED
+            value: "0"
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 302m
+          command:
+            - "bash"
+            - "-c"
+            - "celery --app=app.celery.app worker --concurrency=1 -Ofair -l info"
+            # - "sleep 60m"
+          envFrom:
+            - configMapRef:
+                name: api-config
+      imagePullSecrets:
+        - name: dockerregkey
+        

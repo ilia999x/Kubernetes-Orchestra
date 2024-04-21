@@ -1,0 +1,86 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: celoop-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: celoop-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: celoop-storage
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/backend/bloop"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: celoop-pv-claim
+spec:
+  storageClassName: celoop-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-worker1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: celery-worker
+  template:
+    metadata:
+      labels:
+        name: celery-worker
+    spec:
+      containers:
+        - name: celery-worker
+          image: ilia999x/backend-backend:latest
+          volumeMounts:
+            - mountPath: /app/bloop
+              name: celerypv
+            - mountPath: /app/loges
+              name: celerypv
+          env:
+          - name: PYTHONUNBUFFERED
+            value: "0"
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: "1524M"
+              cpu: "550m"
+            limits:
+              memory: "1524M"
+          command:
+            - "bash"
+            - "-c"
+            - "celery --app=worker.app worker --concurrency=1 -Ofair --pool=solo --loglevel=INFO"
+            # - "sleep 60m"
+          envFrom:
+            - secretRef:
+                name: backend-secret
+            - configMapRef:
+                name: backend-config
+      volumes:
+        - name: celerypv
+          persistentVolumeClaim:
+            claimName: celoop-pv-claim
+      imagePullSecrets:
+        - name: dockerregkey
+        

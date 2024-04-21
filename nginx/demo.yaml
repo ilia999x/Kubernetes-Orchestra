@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  type: NodePort
+  ports:
+  - port: 3000
+    targetPort: 3000
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: my-ingress
+spec:
+  rules:
+  - host: my-host.com
+    http:
+      paths:
+      - path: /api1
+        backend:
+          serviceName: api1
+          servicePort: 3000
+      - path: /api2
+        backend:
+          serviceName: api2
+          servicePort: 3000

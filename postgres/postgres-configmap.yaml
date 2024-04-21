@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  labels:
+    app: postgres
+data:
+  POSTGRES_DB: websitedb
+  POSTGRES_USER: admin
+  POSTGRES_PASSWORD: AVNS_tetr6hwN_HtBLymVJ0i
+  wal_level : logical

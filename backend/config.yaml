@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+data:
+  SPACES_ACCESS: "AKIARP4YOJPKE4MWVYNE"
+  SPACES_SECRET: "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"
+  ENDPOINT: "https://s3.amazonaws.com"
+  REGION: "us-east-1"
+  website_API: "https://api.website.com/wm/"
+  ORIGINS: "https://website.com,http://localhost,http://localhost:5000"
+  backend_BUCKET: "media.website.com"
+  CELERY_BROKER_URL: "amqp://backend:manager@rabbitmq-serv:5672/backend"
+  CELERY_RESULT_BACKEND: "redis://default:1iuevs0R5W@redis-server-master:6379"

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabitmq
+  labels:
+    app: rabbitwm
+spec:
+  type: NodePort
+  selector:
+    app: rabbitwm
+  ports:
+    - name: amqp
+      protocol: TCP
+      port: 80
+      targetPort: 5672

@@ -1,0 +1,54 @@
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: flower-service
+# spec:
+#   type: clusterIP
+#   selector:
+#     type: flower
+#   ports:
+#     port: 5555
+#     targetPort: 5555
+# ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flower-deployment
+  labels:
+    type: flower
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      type: flower
+  template:
+    metadata:
+      labels:
+        type: flower
+    spec:
+      volumes:
+        - name: storage-credentials-volume
+          secret:
+            secretName: storage-credentials
+      containers:
+        - name: flower
+          image: mher/flower:0.9.4
+          
+          # command: [
+          #   "celery",
+          #   "flower",
+          #   "--basic_auth=$(FLOWER_USER):$(FLOWER_PASSWORD)",
+          #   "--broker=amqp://guest:guest@rabbitmq:5672/%2F",
+          #   "--port=5555",
+          #   "--url-prefix=flower"
+          # ]
+          ports:
+            - containerPort: 5555
+          volumeMounts:
+            - mountPath: /storage-credentials
+              name: storage-credentials-volume
+              readOnly: true
+          # envFrom:
+          #   - secretRef:
+          #       name: flower-secrets
+                # kubectl create secret generic flower-secrets --from-env-file=backend/flower-secrets

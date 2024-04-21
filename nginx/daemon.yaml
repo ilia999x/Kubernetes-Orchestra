@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: DaemonSet
+spec:
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    spec:
+      containers:
+      - name: ng-daemonset
+        ports:
+        - containerPort: 80
+          hostPort: 80
+        - containerPort: 443
+          hostPort: 443

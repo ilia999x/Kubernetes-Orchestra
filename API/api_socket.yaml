@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: server-api-socket-service
+  labels:
+    app: polls
+spec:
+  type: ClusterIP
+  selector:
+    app: api-socket
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: website-api-socket
+  labels:
+    app: api-socket
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-socket
+  template:
+    metadata:
+      labels:
+        app: api-socket
+    spec:
+      containers:
+        - image: ilia999x/backend-api:latest
+          imagePullPolicy: Always
+          name: api-socket
+          
+          envFrom:
+          - secretRef:
+              name: api-secret
+          - configMapRef:
+              name: polls-config
+          resources:
+            requests:
+              memory: "1024M"
+              cpu: "550m"
+          command:
+            - "bash"
+            - "-c"
+            - "daphne app.asgi:application --b 0.0.0.0 -p 9000"
+          ports:
+            - containerPort: 9000
+              name: daphne
+      imagePullSecrets:
+        - name: dockerregkey

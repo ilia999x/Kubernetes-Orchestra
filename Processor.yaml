@@ -1,0 +1,225 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: procesor-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: procesor-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: procesor-storage
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/backend/bloop"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: procesor-pv-claim
+spec:
+  storageClassName: procesor-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: procesor-service
+  labels:
+    app: procesor
+spec:
+  type: ClusterIP
+  selector:
+    app: procesor
+  ports:
+    - port: 80
+      targetPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  labels:
+    app: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - port: 80
+      targetPort: 5050
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backending-config
+data:
+  SPACES_ACCESS: "AKIARP4YOJPKE4MWVYNE"
+  SPACES_SECRET: "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"
+  ENDPOINT: "https://s3.amazonaws.com"
+  REGION: "us-east-1"
+  website_API: 'http://server-api-service:8000/wm/'
+  ORIGINS: 'https://website.com,http://localhost,http://localhost:5000'
+  backend_BUCKET: 'media.website.com'
+  CELERY_BROKER_URL: 'amqp://backend:manager@bunnymq-rabbitmq:5672/backend'
+  CELERY_RESULT_BACKEND: 'redis://default:ve4s0MUu1sUc@redis-master:6379'
+  backend: http://backend-service:5050/image_process/
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  serviceName: "backend"
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      tolerations:
+        - key: "node.kubernetes.io/memory-pressure"
+          effect: "NoSchedule"
+  
+      containers:
+        - name: backend
+          image: ilia999x/backend:latest
+          env:
+          - name: PYTHONUNBUFFERED
+            value: "0"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5050
+              name: uvicorn
+          command:
+            - "bash"
+            - "-c"
+            - "uvicorn main:app --reload --workers 1 --host 0.0.0.0 --port 5050"
+            # - "sleep 60m"
+          envFrom: 
+            - configMapRef:
+                name: backending-config
+
+      imagePullSecrets:
+        - name: dockerregkey
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: procesor
+  labels:
+    app: procesor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: procesor
+  serviceName: "procesor"
+  template:
+    metadata:
+      labels:
+        app: procesor
+    spec:
+      containers:
+        - name: procesor
+          image: ilia999x/procesor:latest
+          volumeMounts:
+            - mountPath: /app/blob
+              name: pv
+            - mountPath: /app/tempbloop
+              name: pv
+            - mountPath: /app/loges
+              name: pv
+          env:
+          - name: PYTHONUNBUFFERED
+            value: "0"
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 302m
+          ports:
+            - containerPort: 5000
+              name: uvicorn
+          command:
+            - "bash"
+            - "-c"
+            - "uvicorn main:app --reload --workers 1 --host 0.0.0.0 --port 5000"
+            # - "sleep 60m"
+          envFrom:
+            - configMapRef:
+                name: backending-config
+      volumes:
+        - name: pv
+          persistentVolumeClaim:
+            claimName: procesor-pv-claim
+
+      imagePullSecrets:
+        - name: dockerregkey
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: procesor-task
+  labels:
+    app: procesor-task
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: procesor-task
+  serviceName: "procesor-task"
+  template:
+    metadata:
+      labels:
+        app: procesor-task
+    spec:
+      containers:
+        - name: procesor
+          image: ilia999x/procesor:latest
+          volumeMounts:
+            - mountPath: /app/blob
+              name: pv
+            - mountPath: /app/tempbloop
+              name: pv
+            - mountPath: /app/loges
+              name: pv
+          env:
+          - name: PYTHONUNBUFFERED
+            value: "0"
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 302m
+          command:
+            - "bash"
+            - "-c"
+            - "celery --app=worker.app worker --concurrency=1 -Ofair --pool=solo --loglevel=INFO"
+            # - "sleep 60m"
+          envFrom:
+            - configMapRef:
+                name: backending-config
+      volumes:
+        - name: pv
+          persistentVolumeClaim:
+            claimName: procesor-pv-claim
+
+      imagePullSecrets:
+        - name: dockerregkey

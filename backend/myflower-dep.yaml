@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: myflower-service
+  labels:
+    app: myflower
+spec:
+  type: ClusterIP
+  selector:
+    app: myflower
+  ports:
+    - port: 5001
+      targetPort: 5001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: website-backend-flower
+  labels:
+    app: myflower
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myflower
+  template:
+    metadata:
+      labels:
+        app: myflower
+    spec:
+      containers:
+        - image: ilia999x/backend-backend:latest
+          imagePullPolicy: Always
+         
+          name: myflower
+          envFrom:
+          - secretRef:
+              name: backend-secret
+          ports:
+            - containerPort: 5001
+              name: myflower
+          command:
+            - "bash"
+            - "-c"
+            - "celery -A worker.app flower --port=5001"
+            - "sleep 60m" 
+      imagePullSecrets:
+        - name: dockerregkey
+---

@@ -1,0 +1,134 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  DJANGO_LOGLEVEL: "info"
+  DEBUG: "False"
+  DATABASE_ENGINE: "postgresql_psycopg2"
+  DJANGO_SETTINGS_MODULE: "app.settings"
+  SECRET_KEY: "*n*f0zqlu+cgn&m*sd3^qkz9b=nw6db(tfo$156o9ag-%2f_eq"
+  DJANGO_ALLOWED_HOSTS: "165.22.201.149,localhost,127.0.0.1,website.com,m.website.com,web.website.com,api.website.com"
+  SQL_ENGINE: "django.db.backends.postgresql_psycopg2"
+  SQL_DATABASE: "websitedb"
+  SQL_USER: "admin"
+  SQL_PASSWORD: "AVNS_tetr6hwN_HtBLymVJ0i"
+  SQL_HOST: "postgresserver-postgresql"
+  SQL_PORT: "5432"
+  SENDGRID_API_PASS: "SG.newly_generated_password.Lt1Plqd1NAfJny4mVfpsJyIe27PMfmCQQZbxfpzNO4w"
+  SENDGRID_API_KEY: "newly_generated_key"
+  WOKEEPOCH: "1577840400000"
+  CELERY_BROKER_URL: "amqp://api:manager@rabbitmq-serv:5672/api"
+  CELERY_RESULT_BACKEND: "redis://default:1iuevs0R5W@redis-server-master:6379"
+  SOCK_REDIS: "redis://default:1iuevs0R5W@redis-server-master:6379"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server-api-service
+  labels:
+    app: api
+spec:
+  type: ClusterIP
+  selector:
+    app: api
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: api
+  labels:
+    app: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  serviceName: "api"
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - image: ilia999x/backend-api:latest
+          imagePullPolicy: Always
+          name: api
+          envFrom:
+          # - secretRef:
+          #     name: api-secret
+          - configMapRef:
+              name: api-config
+          # resources:
+          #   requests:
+          #     memory: "1024M"
+          #     cpu: "550m"
+          command:
+            - "bash"
+            - "-c"
+            - "gunicorn app.wsgi:application --workers 6 --threads 3 --bind 0.0.0.0:8000 --timeout 0"
+          ports:
+            - containerPort: 8000
+              name: gunicorn
+      imagePullSecrets:
+        - name: dockerregkey
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: api-worker
+  labels:
+    app: api-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-worker
+  serviceName: "api-worker"
+  template:
+    metadata:
+      labels:
+        app: api-worker
+    spec:
+      containers:
+        - name: api-worker
+          image: ilia999x/backend-api:latest
+          env:
+          - name: PYTHONUNBUFFERED
+            value: "0"
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 302m
+          command:
+            - "bash"
+            - "-c"
+            - "celery --app=app.celery.app worker --concurrency=1 -Ofair -l info"
+            # - "sleep 60m"
+          envFrom:
+            - configMapRef:
+                name: api-config
+
+        - name: api-beat1
+          image: ilia999x/backend-api:latest
+          env:
+          - name: PYTHONUNBUFFERED
+            value: "0"
+          imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 302m
+          command:
+            - "bash"
+            - "-c"
+            - "celery --app=app.celery.app beat -l info"
+            # - "sleep 60m"
+          envFrom:
+            - configMapRef:
+                name: api-config
+      imagePullSecrets:
+        - name: dockerregkey
